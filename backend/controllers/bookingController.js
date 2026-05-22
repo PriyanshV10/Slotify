@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
+const generateSlots = require("../utils/generateSlots");
 
 const getBookings = async (req, res) => {
   try {
@@ -19,6 +20,88 @@ const getBookings = async (req, res) => {
 
     res.status(500).json({
       message: "Failed to fetch bookings",
+    });
+  }
+};
+
+const getAvailableSlots = async (req, res) => {
+  try {
+    const { eventTypeId, date } = req.query;
+
+    if (!eventTypeId || !date) {
+      return res.status(400).json({
+        message: "eventTypeId and date are required",
+      });
+    }
+
+    // Get event type
+    const eventType = await prisma.eventType.findUnique({
+      where: {
+        id: eventTypeId,
+      },
+    });
+
+    if (!eventType) {
+      return res.status(404).json({
+        message: "Event type not found",
+      });
+    }
+
+    const selectedDate = new Date(date);
+
+    const dayOfWeek = selectedDate.getDay();
+
+    // Find availability
+    const availability = await prisma.availability.findFirst({
+      where: {
+        dayOfWeek,
+      },
+    });
+
+    if (!availability) {
+      return res.json([]);
+    }
+
+    // Generate all slots
+    const allSlots = generateSlots(
+      availability.startTime,
+      availability.endTime,
+      eventType.duration,
+      selectedDate
+    );
+
+    // Get booked slots
+    const bookings = await prisma.booking.findMany({
+      where: {
+        eventTypeId,
+        startTime: {
+          gte: new Date(
+            new Date(date).setHours(0, 0, 0, 0)
+          ),
+          lte: new Date(
+            new Date(date).setHours(23, 59, 59, 999)
+          ),
+        },
+        status: "active",
+      },
+    });
+
+    const bookedTimes = bookings.map((booking) =>
+      booking.startTime.toISOString()
+    );
+
+    // Remove booked slots
+    const availableSlots = allSlots.filter(
+      (slot) =>
+        !bookedTimes.includes(slot.toISOString())
+    );
+
+    res.json(availableSlots);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Failed to fetch slots",
     });
   }
 };
@@ -130,6 +213,7 @@ const cancelBooking = async (req, res) => {
 
 module.exports = {
   getBookings,
+  getAvailableSlots,
   createBooking,
   cancelBooking,
 };

@@ -17,4 +17,6 @@ router.put("/:id", updateEventType);
 
 router.delete("/:id", deleteEventType);
 
+router.get("/slug/:slug", getEventTypeBySlug);
+
 module.exports = router;

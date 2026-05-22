@@ -135,9 +135,36 @@ const deleteEventType = async (req, res) => {
   }
 };
 
+const getEventTypeBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const eventType = await prisma.eventType.findUnique({
+      where: {
+        slug,
+      },
+    });
+
+    if (!eventType) {
+      return res.status(404).json({
+        message: "Event type not found",
+      });
+    }
+
+    res.json(eventType);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Failed to fetch event type",
+    });
+  }
+};
+
 module.exports = {
   getAllEventTypes,
   createEventType,
   updateEventType,
   deleteEventType,
+  getEventTypeBySlug,
 };
