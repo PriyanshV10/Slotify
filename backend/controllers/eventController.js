@@ -91,7 +91,7 @@ const updateEventType = async (req, res) => {
       data: {
         title,
         description,
-        duration: Number(duration),
+        duration: duration !== undefined ? Number(duration) : undefined,
         slug,
         location,
         color,

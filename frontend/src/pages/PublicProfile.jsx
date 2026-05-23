@@ -73,7 +73,7 @@ export default function PublicProfile() {
           activeEvents.map(et => (
             <Link
               key={et.id}
-              to={`/${et.slug}`}
+              to={`/${user.username}/${et.slug}`}
               className="group flex items-center justify-between bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 px-5 py-4 hover:border-zinc-400 dark:hover:border-zinc-600 hover:shadow-sm transition-all duration-150"
             >
               <div className="flex items-start gap-4">

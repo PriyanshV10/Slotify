@@ -79,10 +79,7 @@ export default function DashboardLayout() {
       {/* Logo + mobile close trigger */}
       <div className="flex h-16 shrink-0 items-center justify-between gap-2.5 px-5 border-b border-zinc-100 dark:border-zinc-800/60">
         <div className="flex items-center gap-2.5">
-          <div className="bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 p-1.5 rounded-lg">
-            <CalendarDays className="h-4 w-4" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Slotify</span>
+          <img src="/logo.png" alt="Slotify" className="h-8 w-auto dark:invert opacity-90 hover:opacity-100 transition-opacity" />
         </div>
         {/* Dark mode toggle — moved here from header */}
         <button
@@ -178,7 +175,7 @@ export default function DashboardLayout() {
               <SidebarContent onNavClick={() => setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Slotify</span>
+          <img src="/logo.png" alt="Slotify" className="h-6 w-auto dark:invert opacity-90" />
         </div>
 
         {/* Page content */}

@@ -26,9 +26,12 @@ function App() {
             <Route path="appearance" element={<Appearance />} />
           </Route>
         </Route>
+        {/* Redirect root to dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard/event-types" replace />} />
+        
         {/* Public-facing routes */}
-        <Route path="/" element={<PublicProfile />} />
-        <Route path="/:slug" element={<PublicBooking />} />
+        <Route path="/:username" element={<PublicProfile />} />
+        <Route path="/:username/:slug" element={<PublicBooking />} />
       </Routes>
     </Router>
   );

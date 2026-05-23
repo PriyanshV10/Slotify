@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useApp } from '@/context/AppContext';
 import { locationOptions, getLocationLabel } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -53,7 +54,7 @@ function EventTypeSkeleton() {
 }
 
 export default function EventTypes() {
-  const { eventTypes, createEventType, updateEventType, deleteEventType, toggleEventType, loading } = useApp();
+  const { eventTypes, createEventType, updateEventType, deleteEventType, toggleEventType, loading, user } = useApp();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
@@ -89,12 +90,13 @@ export default function EventTypes() {
   };
 
   const handleCopyLink = (slug, id) => {
-    navigator.clipboard.writeText(`${window.location.origin}/${slug}`);
+    navigator.clipboard.writeText(`${window.location.origin}/${user.username}/${slug}`);
     setCopiedId(id); toast.success('Link copied'); setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider delayDuration={200}>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Event Types</h2>
@@ -147,37 +149,67 @@ export default function EventTypes() {
                 </div>
               </div>
               {/* Actions */}
-              <div className="flex items-center gap-1 shrink-0">
-                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5" onClick={() => handleCopyLink(et.slug, et.id)}>
-                  {copiedId === et.id ? <><Check className="h-3.5 w-3.5 text-green-500" /><span className="hidden sm:inline">Copied</span></> : <><Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">Copy link</span></>}
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5" onClick={() => openEdit(et)}>
-                  <Pencil className="h-3.5 w-3.5" /><span className="hidden sm:inline">Edit</span>
-                </Button>
-                <a href={`/${et.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                  <ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">Preview</span>
-                </a>
-                <div className="flex items-center gap-3 mr-2 bg-zinc-50 dark:bg-zinc-800/50 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={et.showOnProfile ?? true} onChange={(e) => {
-                      updateEventType(et.id, { showOnProfile: e.target.checked });
-                    }} className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900 cursor-pointer" />
-                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">On Profile</span>
-                  </label>
-                  <div className="w-px h-3 bg-zinc-300 dark:bg-zinc-700" />
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Switch checked={et.enabled} onCheckedChange={() => toggleEventType(et.id)} className="scale-75 origin-left" />
-                  </label>
+              <div className="flex items-center gap-4 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch checked={et.showOnProfile ?? true} onCheckedChange={(v) => {
+                        updateEventType(et.id, { showOnProfile: v });
+                        toast.success(v ? 'Event shown on profile' : 'Event hidden from profile');
+                      }} />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">{et.showOnProfile !== false ? 'Hide from profile' : 'Show on profile'}</p></TooltipContent>
+                </Tooltip>
+                
+                <div className="flex items-center rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent overflow-hidden">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a href={`/${user.username}/${et.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 w-10 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-r border-zinc-200 dark:border-zinc-800">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Preview</p></TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => handleCopyLink(et.slug, et.id)} className="inline-flex h-9 w-10 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-r border-zinc-200 dark:border-zinc-800">
+                        {copiedId === et.id ? <Check className="h-4 w-4 text-green-500" /> : <LinkIcon className="h-4 w-4" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Copy link</p></TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex h-9 w-10 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">More</p></TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                      <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openEdit(et)}>
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => {
+                        const updatedStatus = !(et.showOnProfile ?? true);
+                        updateEventType(et.id, { showOnProfile: updatedStatus });
+                        toast.success(updatedStatus ? 'Event shown on profile' : 'Event hidden from profile');
+                      }}>
+                        {et.showOnProfile === false ? <><Eye className="h-3.5 w-3.5" /> Show on profile</> : <><EyeOff className="h-3.5 w-3.5" /> Hide from profile</>}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-red-600 focus:text-red-600 cursor-pointer gap-2" onClick={() => handleDelete(et.id)}>
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                    <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openEdit(et)}><Pencil className="h-3.5 w-3.5" /> Edit</DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => handleCopyLink(et.slug, et.id)}><Copy className="h-3.5 w-3.5" /> Copy link</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-600 focus:text-red-600 cursor-pointer gap-2" onClick={() => handleDelete(et.id)}><Trash2 className="h-3.5 w-3.5" /> Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
           ))}
@@ -255,5 +287,6 @@ export default function EventTypes() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
