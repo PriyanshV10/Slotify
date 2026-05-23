@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Clock, Copy, MoreHorizontal, Link as LinkIcon, Plus, Pencil, Trash2, ExternalLink, Video, Phone, MapPin, Monitor, Check, Search, EyeOff, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -129,8 +130,16 @@ export default function EventTypes() {
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
-          {eventTypes.filter(et => et.title.toLowerCase().includes(searchQuery.toLowerCase()) || et.slug.toLowerCase().includes(searchQuery.toLowerCase())).map((et) => (
-            <div key={et.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors ${!et.enabled ? 'opacity-50' : ''}`}>
+          <AnimatePresence>
+            {eventTypes.filter(et => et.title.toLowerCase().includes(searchQuery.toLowerCase()) || et.slug.toLowerCase().includes(searchQuery.toLowerCase())).map((et, index) => (
+              <motion.div 
+                key={et.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                className={`flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors ${!et.enabled ? 'opacity-50' : ''}`}
+              >
               {/* Color dot */}
               <div className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: et.color + '18' }}>
                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: et.color }} />
@@ -211,9 +220,10 @@ export default function EventTypes() {
                   </DropdownMenu>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </AnimatePresence>
+      </div>
       )}
 
       {/* Create / Edit Dialog */}

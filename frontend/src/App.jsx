@@ -9,6 +9,7 @@ import PublicProfile from './pages/PublicProfile';
 import SettingsLayout from './layouts/SettingsLayout';
 import Profile from './pages/settings/Profile';
 import Appearance from './pages/settings/Appearance';
+import Landing from './pages/Landing';
 
 function App() {
   return (
@@ -26,8 +27,8 @@ function App() {
             <Route path="appearance" element={<Appearance />} />
           </Route>
         </Route>
-        {/* Redirect root to dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard/event-types" replace />} />
+        {/* Redirect root to Landing page */}
+        <Route path="/" element={<Landing />} />
         
         {/* Public-facing routes */}
         <Route path="/:username" element={<PublicProfile />} />

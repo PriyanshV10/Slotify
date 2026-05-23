@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -177,24 +178,58 @@ export default function PublicBooking() {
   // ── Confirmation ───────────────────────────────────────────────────────────
   if (confirmedBooking) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-8 text-center shadow-sm">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-green-50 dark:bg-green-950/30 mb-4">
-            <CheckCircle2 className="h-8 w-8 text-green-500" />
-          </div>
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-1">Confirmed!</h2>
-          <p className="text-sm text-zinc-500 mb-6">A confirmation will be sent to <strong>{confirmedBooking.attendeeEmail}</strong></p>
-          <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 text-left space-y-2.5 text-sm mb-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4 overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-8 text-center shadow-2xl"
+        >
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 400, delay: 0.2 }}
+            className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-green-50 dark:bg-green-950/50 mb-6 shadow-inner"
+          >
+            <CheckCircle2 className="h-10 w-10 text-green-500" />
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2"
+          >
+            Confirmed!
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-base text-zinc-500 mb-8"
+          >
+            A confirmation will be sent to <strong className="text-zinc-900 dark:text-zinc-100">{confirmedBooking.attendeeEmail}</strong>
+          </motion.p>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-5 text-left space-y-3.5 text-sm mb-8 border border-zinc-100 dark:border-zinc-800"
+          >
             <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300"><CalendarDays className="h-4 w-4 text-zinc-400 shrink-0" />{format(new Date(confirmedBooking.date + 'T00:00:00'), 'EEEE, MMMM d, yyyy')}</div>
             <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300"><Clock className="h-4 w-4 text-zinc-400 shrink-0" />{to12h(confirmedBooking.startTime)} – {to12h(confirmedBooking.endTime)}</div>
             <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300"><LocIcon location={event.location} className="h-4 w-4 text-zinc-400 shrink-0" />{getLocationLabel(event.location)}</div>
             <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300"><Globe className="h-4 w-4 text-zinc-400 shrink-0" />{availability.timezone}</div>
-          </div>
-          <div className="flex gap-3 justify-center">
-            <Link to="/dashboard/bookings"><Button variant="outline" className="rounded-full">View bookings</Button></Link>
-            <Button className="rounded-full bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900" onClick={() => { setConfirmedBooking(null); setSelectedDate(null); setSelectedTime(null); setName(''); setEmail(''); setNotes(''); }}>Book another</Button>
-          </div>
-        </div>
+          </motion.div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-3 justify-center"
+          >
+            <Link to="/dashboard/bookings" className="w-full sm:w-auto"><Button variant="outline" className="w-full rounded-full h-11">View bookings</Button></Link>
+            <Button className="w-full sm:w-auto rounded-full h-11 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all" onClick={() => { setConfirmedBooking(null); setSelectedDate(null); setSelectedTime(null); setName(''); setEmail(''); setNotes(''); }}>Book another</Button>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }

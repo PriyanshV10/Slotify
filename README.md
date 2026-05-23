@@ -105,7 +105,7 @@ To run this project, you will need to add the following environment variables to
 - Availability Settings
 ![image](./Screenshots/availability.png)
 - Public Booking Page
-![image](./Screenshots/booking.png)
+![image](./Screenshots/bookings.png)
 
 ## 🤔 Assumptions
 - **No Authentication**: As per the requirements, no login system is implemented. A default user context is assumed for the admin side, and the public booking page is accessible to anyone.
