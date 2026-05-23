@@ -1,6 +1,7 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
 
-@plugin "tailwindcss-animate";
+@import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -104,27 +105,74 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-zinc-200 selection:text-zinc-900;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* DayPicker custom styles */
+/* ─── Page enter animation ─────────────────────────────────────────────────── */
+.page-enter {
+  animation: pageEnter 0.25s ease-out;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── DayPicker custom styles ──────────────────────────────────────────────── */
 .rdp {
-  --rdp-cell-size: 40px !important;
-  --rdp-accent-color: hsl(var(--primary)) !important;
-  --rdp-background-color: hsl(var(--muted)) !important;
-  --rdp-accent-color-dark: hsl(var(--primary)) !important;
-  --rdp-background-color-dark: hsl(var(--muted)) !important;
-  --rdp-outline: 2px solid hsl(var(--ring)) !important;
-  --rdp-outline-selected: 2px solid hsl(var(--primary)) !important;
-  margin: 0 !important;
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-background-color: hsl(var(--muted));
+  --rdp-accent-color-dark: hsl(var(--primary));
+  --rdp-background-color-dark: hsl(var(--muted));
+  --rdp-outline: 2px solid hsl(var(--ring));
+  --rdp-outline-selected: 2px solid hsl(var(--primary));
+  margin: 0;
 }
 
 .rdp-day_selected {
-  @apply bg-primary text-primary-foreground font-semibold hover:bg-primary/90 !important;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+}
+.rdp-day_selected:hover {
+  background-color: hsl(var(--primary) / 0.9);
 }
 
 .rdp-day_today:not(.rdp-day_selected) {
-  @apply font-bold bg-accent text-accent-foreground !important;
+  font-weight: 700;
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* ─── Smooth scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(240 5.9% 80%);
+  border-radius: 100px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(240 3.7% 25%);
+}
+
+/* ─── Focus ring consistency ───────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
 }

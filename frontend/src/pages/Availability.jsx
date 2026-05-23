@@ -1,89 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2 } from 'lucide-react';
-import { availabilityApi } from '@/lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Plus, Trash2, CalendarPlus, Globe, Loader2 } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { commonTimezones } from '@/lib/constants';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 const DAYS = [
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-  { value: 0, label: 'Sunday' },
+  { value: 1, label: 'Monday', short: 'Mon' },
+  { value: 2, label: 'Tuesday', short: 'Tue' },
+  { value: 3, label: 'Wednesday', short: 'Wed' },
+  { value: 4, label: 'Thursday', short: 'Thu' },
+  { value: 5, label: 'Friday', short: 'Fri' },
+  { value: 6, label: 'Saturday', short: 'Sat' },
+  { value: 0, label: 'Sunday', short: 'Sun' },
 ];
 
 export default function Availability() {
-  const [loading, setLoading] = useState(true);
+  const { availability, updateAvailability, loading } = useApp();
+  const [schedule, setSchedule] = useState(availability.schedule);
+  const [timezone, setTimezone] = useState(availability.timezone);
+  const [dateOverrides, setDateOverrides] = useState(availability.dateOverrides || []);
+  const [newOverrideDate, setNewOverrideDate] = useState('');
+  const [newOverrideStart, setNewOverrideStart] = useState('09:00');
+  const [newOverrideEnd, setNewOverrideEnd] = useState('17:00');
+  const [newOverrideUnavailable, setNewOverrideUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  
-  // State maps day value (0-6) to an array of intervals or empty if disabled
-  const [schedule, setSchedule] = useState({});
-
-  const fetchAvailability = async () => {
-    try {
-      setLoading(true);
-      const data = await availabilityApi.get();
-      
-      const newSchedule = {};
-      DAYS.forEach(day => {
-        newSchedule[day.value] = [];
-      });
-
-      if (data && data.length > 0) {
-        setTimezone(data[0].timezone);
-        data.forEach(item => {
-          if (newSchedule[item.dayOfWeek]) {
-            newSchedule[item.dayOfWeek].push({
-              id: item.id || Math.random().toString(),
-              startTime: item.startTime,
-              endTime: item.endTime
-            });
-          }
-        });
-      } else {
-        // Default Mon-Fri 9-5
-        [1,2,3,4,5].forEach(day => {
-          newSchedule[day] = [{ id: Math.random().toString(), startTime: '09:00', endTime: '17:00' }];
-        });
-      }
-      setSchedule(newSchedule);
-    } catch (error) {
-      console.error("Failed to fetch availability", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchAvailability();
-  }, []);
 
   const handleSave = async () => {
+    setSaving(true);
     try {
-      setSaving(true);
-      // Flatten schedule into array for API
-      const flatSchedule = [];
-      Object.keys(schedule).forEach(dayKey => {
-        const dayOfWeek = parseInt(dayKey, 10);
-        schedule[dayKey].forEach(interval => {
-          flatSchedule.push({
-            dayOfWeek,
-            startTime: interval.startTime,
-            endTime: interval.endTime,
-            timezone
-          });
-        });
-      });
-
-      await availabilityApi.set({ schedule: flatSchedule });
-      // Ideally show a toast
-    } catch (error) {
-      console.error("Failed to save availability", error);
+      await updateAvailability({ ...availability, schedule, timezone, dateOverrides });
+      toast.success('Availability saved successfully');
     } finally {
       setSaving(false);
     }
@@ -91,150 +45,168 @@ export default function Availability() {
 
   const toggleDay = (dayValue) => {
     setSchedule(prev => {
-      const current = prev[dayValue];
-      if (current && current.length > 0) {
-        // Disable day
-        return { ...prev, [dayValue]: [] };
-      } else {
-        // Enable with default 9-5
-        return { ...prev, [dayValue]: [{ id: Math.random().toString(), startTime: '09:00', endTime: '17:00' }] };
-      }
+      const cur = prev[dayValue];
+      if (cur && cur.length > 0) return { ...prev, [dayValue]: [] };
+      return { ...prev, [dayValue]: [{ id: crypto.randomUUID(), startTime: '09:00', endTime: '17:00' }] };
     });
   };
 
   const updateInterval = (dayValue, intervalId, field, value) => {
     setSchedule(prev => ({
       ...prev,
-      [dayValue]: prev[dayValue].map(interval => 
-        interval.id === intervalId ? { ...interval, [field]: value } : interval
-      )
+      [dayValue]: prev[dayValue].map(i => i.id === intervalId ? { ...i, [field]: value } : i),
     }));
   };
 
   const addInterval = (dayValue) => {
     setSchedule(prev => ({
       ...prev,
-      [dayValue]: [...prev[dayValue], { id: Math.random().toString(), startTime: '09:00', endTime: '17:00' }]
+      [dayValue]: [...prev[dayValue], { id: crypto.randomUUID(), startTime: '09:00', endTime: '17:00' }],
     }));
   };
 
   const removeInterval = (dayValue, intervalId) => {
     setSchedule(prev => ({
       ...prev,
-      [dayValue]: prev[dayValue].filter(interval => interval.id !== intervalId)
+      [dayValue]: prev[dayValue].filter(i => i.id !== intervalId),
     }));
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-muted rounded"></div>
-        <Card>
-          <CardContent className="h-64"></CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const addDateOverride = () => {
+    if (!newOverrideDate) return;
+    const existing = dateOverrides.find(o => o.date === newOverrideDate);
+    if (existing) { toast.error('Override already exists for this date'); return; }
+    setDateOverrides(prev => [...prev, {
+      id: crypto.randomUUID(),
+      date: newOverrideDate,
+      unavailable: newOverrideUnavailable,
+      startTime: newOverrideUnavailable ? null : newOverrideStart,
+      endTime: newOverrideUnavailable ? null : newOverrideEnd,
+    }]);
+    setNewOverrideDate('');
+    toast.success('Date override added');
+  };
+
+  const removeOverride = (id) => {
+    setDateOverrides(prev => prev.filter(o => o.id !== id));
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Availability</h2>
-          <p className="text-muted-foreground mt-1">
-            Configure your weekly schedule and working hours.
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Availability</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure your weekly schedule and working hours.</p>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="rounded-full px-6">
-          {saving ? 'Saving...' : 'Save changes'}
+        <Button
+          onClick={handleSave}
+          disabled={saving || loading}
+          className="rounded-full px-6 h-9 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 disabled:opacity-60"
+        >
+          {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : 'Save changes'}
         </Button>
       </div>
 
-      <Card className="rounded-2xl">
+      {/* Working Hours Card */}
+      <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg flex justify-between items-center">
-            <span>Working hours</span>
-            <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
-              <span>Timezone:</span>
-              <span className="font-medium text-foreground">{timezone}</span>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg text-zinc-900 dark:text-zinc-50">{availability.name}</CardTitle>
+              <CardDescription>Set the hours you are available for meetings.</CardDescription>
             </div>
-          </CardTitle>
-          <CardDescription>Set the hours you are available for meetings.</CardDescription>
+            <div className="flex items-center gap-2 text-sm">
+              <Globe className="h-4 w-4 text-zinc-400" />
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger className="w-[200px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>{commonTimezones.map(tz => <SelectItem key={tz} value={tz} className="text-xs">{tz}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-0">
           {DAYS.map((day, idx) => {
             const isActive = schedule[day.value]?.length > 0;
             const intervals = schedule[day.value] || [];
-
             return (
-              <div 
-                key={day.value} 
-                className={`py-5 flex flex-col sm:flex-row sm:items-start gap-4 border-t border-border/60 ${idx === 0 ? 'border-t-0' : ''}`}
-              >
-                <div className="flex items-center w-full sm:w-48 shrink-0">
-                  <Switch 
-                    checked={isActive} 
-                    onCheckedChange={() => toggleDay(day.value)} 
-                    id={`day-${day.value}`}
-                  />
-                  <label 
-                    htmlFor={`day-${day.value}`}
-                    className={`ml-3 font-medium cursor-pointer ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}
-                  >
-                    {day.label}
-                  </label>
+              <div key={day.value} className={`py-4 flex flex-col sm:flex-row sm:items-start gap-3 ${idx > 0 ? 'border-t border-zinc-100 dark:border-zinc-800' : ''}`}>
+                <div className="flex items-center w-full sm:w-36 shrink-0">
+                  <Switch checked={isActive} onCheckedChange={() => toggleDay(day.value)} id={`day-${day.value}`} />
+                  <label htmlFor={`day-${day.value}`} className={`ml-3 text-sm font-medium cursor-pointer ${isActive ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-400'}`}>{day.label}</label>
                 </div>
-                
-                <div className="flex-1 flex flex-col gap-3">
+                <div className="flex-1 flex flex-col gap-2">
                   {!isActive ? (
-                    <div className="text-muted-foreground text-sm py-2">Unavailable</div>
-                  ) : (
-                    intervals.map((interval, i) => (
-                      <div key={interval.id} className="flex flex-wrap items-center gap-2 group">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="time" 
-                            className="flex h-10 w-[120px] rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            value={interval.startTime}
-                            onChange={(e) => updateInterval(day.value, interval.id, 'startTime', e.target.value)}
-                          />
-                          <span className="text-muted-foreground">-</span>
-                          <input 
-                            type="time" 
-                            className="flex h-10 w-[120px] rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            value={interval.endTime}
-                            onChange={(e) => updateInterval(day.value, interval.id, 'endTime', e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeInterval(day.value, interval.id)}
-                            disabled={intervals.length === 1} // Don't let them delete the last one, just toggle the day instead
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          {i === intervals.length - 1 && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-9 w-9 text-muted-foreground hover:text-foreground"
-                              onClick={() => addInterval(day.value)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
+                    <span className="text-zinc-400 text-sm py-1">Unavailable</span>
+                  ) : intervals.map((interval, i) => (
+                    <div key={interval.id} className="flex items-center gap-2">
+                      <input type="time" className="h-9 w-[110px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:text-zinc-50" value={interval.startTime} onChange={(e) => updateInterval(day.value, interval.id, 'startTime', e.target.value)} />
+                      <span className="text-zinc-400 text-sm">–</span>
+                      <input type="time" className="h-9 w-[110px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:text-zinc-50" value={interval.endTime} onChange={(e) => updateInterval(day.value, interval.id, 'endTime', e.target.value)} />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-red-500" onClick={() => removeInterval(day.value, interval.id)} disabled={intervals.length === 1}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      {i === intervals.length - 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-700" onClick={() => addInterval(day.value)}><Plus className="h-3.5 w-3.5" /></Button>}
+                    </div>
+                  ))}
                 </div>
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* Date Overrides */}
+      <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <CardHeader>
+          <CardTitle className="text-lg text-zinc-900 dark:text-zinc-50 flex items-center gap-2"><CalendarPlus className="h-5 w-5" /> Date Overrides</CardTitle>
+          <CardDescription>Set specific dates with different hours or mark as unavailable.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add override form */}
+          <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Date</Label>
+              <Input type="date" className="h-9 w-[160px] text-sm" value={newOverrideDate} onChange={(e) => setNewOverrideDate(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={newOverrideUnavailable} onCheckedChange={setNewOverrideUnavailable} id="override-unavail" />
+              <Label htmlFor="override-unavail" className="text-xs cursor-pointer">Unavailable</Label>
+            </div>
+            {!newOverrideUnavailable && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Start</Label>
+                  <Input type="time" className="h-9 w-[110px] text-sm" value={newOverrideStart} onChange={(e) => setNewOverrideStart(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">End</Label>
+                  <Input type="time" className="h-9 w-[110px] text-sm" value={newOverrideEnd} onChange={(e) => setNewOverrideEnd(e.target.value)} />
+                </div>
+              </>
+            )}
+            <Button onClick={addDateOverride} size="sm" className="h-9 rounded-full gap-1.5 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900">
+              <Plus className="h-3.5 w-3.5" /> Add
+            </Button>
+          </div>
+
+          {/* Existing overrides */}
+          {dateOverrides.length === 0 ? (
+            <p className="text-sm text-zinc-400 text-center py-4">No date overrides set.</p>
+          ) : (
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              {dateOverrides.map(o => (
+                <div key={o.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <div>
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">{format(new Date(o.date + 'T00:00:00'), 'EEE, MMM d, yyyy')}</span>
+                    {o.unavailable ? (
+                      <span className="ml-2 text-red-500 text-xs">Unavailable</span>
+                    ) : (
+                      <span className="ml-2 text-zinc-500 text-xs">{o.startTime} – {o.endTime}</span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-red-500" onClick={() => removeOverride(o.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

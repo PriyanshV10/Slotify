@@ -22,7 +22,7 @@ const getAllEventTypes = async (req, res) => {
 
 const createEventType = async (req, res) => {
   try {
-    const { title, description, duration, slug } = req.body;
+    const { title, description, duration, slug, location, color, bufferTime, enabled, showOnProfile } = req.body;
 
     if (!title || !duration || !slug) {
       return res.status(400).json({
@@ -48,6 +48,11 @@ const createEventType = async (req, res) => {
         description,
         duration: Number(duration),
         slug,
+        location: location || "google-meet",
+        color: color || "#6366f1",
+        bufferTime: bufferTime ? Number(bufferTime) : 0,
+        enabled: enabled !== undefined ? enabled : true,
+        showOnProfile: showOnProfile !== undefined ? showOnProfile : true,
       },
     });
 
@@ -65,7 +70,7 @@ const updateEventType = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { title, description, duration, slug } = req.body;
+    const { title, description, duration, slug, location, color, bufferTime, enabled, showOnProfile } = req.body;
 
     const existingEvent = await prisma.eventType.findUnique({
       where: {
@@ -88,6 +93,11 @@ const updateEventType = async (req, res) => {
         description,
         duration: Number(duration),
         slug,
+        location,
+        color,
+        bufferTime: bufferTime !== undefined ? Number(bufferTime) : undefined,
+        enabled,
+        showOnProfile,
       },
     });
 

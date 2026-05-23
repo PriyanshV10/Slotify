@@ -1,219 +1,259 @@
-import { useState, useEffect } from 'react';
-import { Clock, Copy, MoreHorizontal, Link as LinkIcon, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Copy, MoreHorizontal, Link as LinkIcon, Plus, Pencil, Trash2, ExternalLink, Video, Phone, MapPin, Monitor, Check, Search, EyeOff, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { eventTypesApi } from '@/lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { useApp } from '@/context/AppContext';
+import { locationOptions, getLocationLabel } from '@/lib/constants';
+import { toast } from 'sonner';
+
+const COLORS = ['#6366f1','#8b5cf6','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6'];
+const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90, 120];
+const BUFFER_OPTIONS = [0, 5, 10, 15, 30];
+
+function LocationIcon({ location, className = 'h-3.5 w-3.5' }) {
+  const map = { 'google-meet': Video, zoom: Monitor, phone: Phone, 'in-person': MapPin, teams: Monitor };
+  const Icon = map[location] || Video;
+  return <Icon className={className} />;
+}
+
+const defaultForm = { title: '', slug: '', duration: 30, description: '', location: 'google-meet', color: '#6366f1', bufferTime: 0, showOnProfile: true };
+
+function slugify(s) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+}
+
+function EventTypeSkeleton() {
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden animate-pulse">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="flex items-center gap-4 px-5 py-4">
+          <div className="h-9 w-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-36 bg-zinc-100 dark:bg-zinc-800 rounded" />
+            <div className="flex gap-2">
+              <div className="h-5 w-12 bg-zinc-100 dark:bg-zinc-800 rounded" />
+              <div className="h-5 w-20 bg-zinc-100 dark:bg-zinc-800 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="h-8 w-20 bg-zinc-100 dark:bg-zinc-800 rounded-full" />
+            <div className="h-8 w-14 bg-zinc-100 dark:bg-zinc-800 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function EventTypes() {
-  const [eventTypes, setEventTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { eventTypes, createEventType, updateEventType, deleteEventType, toggleEventType, loading } = useApp();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ title: '', slug: '', duration: 15, description: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState(defaultForm);
+  const [copiedId, setCopiedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchEventTypes = async () => {
-    try {
-      setLoading(true);
-      const data = await eventTypesApi.getAll();
-      setEventTypes(data);
-    } catch (error) {
-      console.error('Failed to fetch event types', error);
-    } finally {
-      setLoading(false);
-    }
+  const openCreate = () => { setEditingId(null); setFormData(defaultForm); setIsDialogOpen(true); };
+
+  const openEdit = (et) => {
+    setEditingId(et.id);
+    setFormData({ title: et.title, slug: et.slug, duration: et.duration, description: et.description || '', location: et.location, color: et.color, bufferTime: et.bufferTime ?? 0, showOnProfile: et.showOnProfile ?? true });
+    setIsDialogOpen(true);
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchEventTypes();
-  }, []);
+  const handleTitleChange = (val) => {
+    setFormData((p) => ({ ...p, title: val, ...(editingId === null ? { slug: slugify(val) } : {}) }));
+  };
 
-  const handleCreate = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      await eventTypesApi.create({
-        ...formData,
-        duration: parseInt(formData.duration, 10)
-      });
-      setIsDialogOpen(false);
-      setFormData({ title: '', slug: '', duration: 15, description: '' });
-      fetchEventTypes();
-    } catch (error) {
-      console.error('Failed to create event type', error);
-    }
+    const data = { ...formData, duration: Number(formData.duration) };
+    if (editingId !== null) { updateEventType(editingId, data); toast.success('Event type updated'); }
+    else { createEventType(data); toast.success('Event type created'); }
+    setIsDialogOpen(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this event type?')) return;
-    try {
-      await eventTypesApi.delete(id);
-      fetchEventTypes();
-    } catch (error) {
-      console.error('Failed to delete event type', error);
-    }
+  const handleDelete = (id) => { deleteEventType(id); toast.success('Event type deleted'); };
+
+  const handleToggleProfile = (et) => {
+    const updatedStatus = !(et.showOnProfile ?? true);
+    updateEventType(et.id, { showOnProfile: updatedStatus });
+    toast.success(updatedStatus ? 'Event shown on profile' : 'Event hidden from profile');
   };
 
-  const handleCopyLink = (slug) => {
-    const url = `${window.location.origin}/${slug}`;
-    navigator.clipboard.writeText(url);
-    // Ideally a toast would go here
+  const handleCopyLink = (slug, id) => {
+    navigator.clipboard.writeText(`${window.location.origin}/${slug}`);
+    setCopiedId(id); toast.success('Link copied'); setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Event Types</h2>
-          <p className="text-muted-foreground mt-1">
-            Create and manage your event types.
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Event Types</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure different events for people to book on your calendar.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 rounded-full px-4">
-              <Plus className="h-4 w-4" />
-              New event type
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Add a new event type</DialogTitle>
-              <DialogDescription>
-                Create a new event type for people to book with you.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input 
-                  id="title" 
-                  placeholder="e.g. 15 Min Meeting" 
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">URL Slug</Label>
-                <div className="flex">
-                  <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                    /
-                  </span>
-                  <Input 
-                    id="slug" 
-                    className="rounded-l-none" 
-                    placeholder="15-min" 
-                    value={formData.slug}
-                    onChange={(e) => setFormData({...formData, slug: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input 
-                  id="duration" 
-                  type="number" 
-                  min="1"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Input 
-                  id="description" 
-                  placeholder="Brief details about this meeting" 
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                />
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">Cancel</Button>
-                <Button type="submit" className="rounded-full">Save event type</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 w-64 h-9 rounded-full bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 focus-visible:ring-1 focus-visible:ring-zinc-400"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button onClick={openCreate} className="gap-2 rounded-full h-9 px-4 text-sm bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200">
+            <Plus className="h-4 w-4" /> New
+          </Button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="h-24 bg-muted/50 rounded-t-xl"></CardHeader>
-              <CardContent className="h-16"></CardContent>
-            </Card>
-          ))}
-        </div>
+        <EventTypeSkeleton />
       ) : eventTypes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-xl bg-card border-dashed">
-          <div className="bg-muted p-4 rounded-full mb-4">
-            <LinkIcon className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold">No event types yet</h3>
-          <p className="text-muted-foreground max-w-sm mt-1">
-            Create your first event type to allow people to book time with you.
-          </p>
-          <Button onClick={() => setIsDialogOpen(true)} className="mt-6 rounded-full px-6">
-            Create Event Type
-          </Button>
+        <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900">
+          <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-full mb-4"><LinkIcon className="h-6 w-6 text-zinc-400" /></div>
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">No event types yet</h3>
+          <p className="text-sm text-zinc-500 mt-1 max-w-sm">Create your first event type to let people book time with you.</p>
+          <Button onClick={openCreate} className="mt-6 rounded-full px-6 gap-2 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900"><Plus className="h-4 w-4" /> Create event type</Button>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {eventTypes.map((event) => (
-            <Card key={event.id} className="group relative transition-all hover:shadow-md hover:border-border/80 flex flex-col">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{event.title}</CardTitle>
-                  <Switch defaultChecked />
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+          {eventTypes.filter(et => et.title.toLowerCase().includes(searchQuery.toLowerCase()) || et.slug.toLowerCase().includes(searchQuery.toLowerCase())).map((et) => (
+            <div key={et.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors ${!et.enabled ? 'opacity-50' : ''}`}>
+              {/* Color dot */}
+              <div className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: et.color + '18' }}>
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: et.color }} />
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{et.title}</span>
+                  <span className="text-xs text-zinc-400 font-mono">/{et.slug}</span>
                 </div>
-                <CardDescription className="line-clamp-2 mt-1">
-                  {event.description || 'No description provided.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4 flex-1">
-                <div className="flex items-center text-sm font-medium text-muted-foreground bg-secondary/50 w-fit px-2.5 py-1 rounded-md">
-                  <Clock className="mr-1.5 h-3.5 w-3.5" />
-                  {event.duration}m
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <Badge variant="secondary" className="gap-1 text-xs font-normal rounded-md py-0.5"><Clock className="h-3 w-3" />{et.duration}m</Badge>
+                  {et.showOnProfile === false && <Badge variant="outline" className="gap-1 text-xs font-normal rounded-md py-0.5 border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-500"><EyeOff className="h-3 w-3" /> Hidden</Badge>}
+                  <Badge variant="secondary" className="gap-1 text-xs font-normal rounded-md py-0.5"><LocationIcon location={et.location} className="h-3 w-3" />{getLocationLabel(et.location)}</Badge>
+                  {et.bufferTime > 0 && <Badge variant="outline" className="text-xs font-normal rounded-md py-0.5">+{et.bufferTime}m buffer</Badge>}
                 </div>
-              </CardContent>
-              <div className="border-t bg-muted/20 px-6 py-3 flex items-center justify-between rounded-b-xl">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 px-2 -ml-2 text-muted-foreground hover:text-foreground font-medium"
-                  onClick={() => handleCopyLink(event.slug)}
-                >
-                  <Copy className="mr-2 h-3.5 w-3.5" />
-                  Copy link
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5" onClick={() => handleCopyLink(et.slug, et.id)}>
+                  {copiedId === et.id ? <><Check className="h-3.5 w-3.5 text-green-500" /><span className="hidden sm:inline">Copied</span></> : <><Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">Copy link</span></>}
                 </Button>
+                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5" onClick={() => openEdit(et)}>
+                  <Pencil className="h-3.5 w-3.5" /><span className="hidden sm:inline">Edit</span>
+                </Button>
+                <a href={`/${et.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-8 px-2.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 gap-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                  <ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">Preview</span>
+                </a>
+                <div className="flex items-center gap-3 mr-2 bg-zinc-50 dark:bg-zinc-800/50 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={et.showOnProfile ?? true} onChange={(e) => {
+                      updateEventType(et.id, { showOnProfile: e.target.checked });
+                    }} className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900 cursor-pointer" />
+                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">On Profile</span>
+                  </label>
+                  <div className="w-px h-3 bg-zinc-300 dark:bg-zinc-700" />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Switch checked={et.enabled} onCheckedChange={() => toggleEventType(et.id)} className="scale-75 origin-left" />
+                  </label>
+                </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-[160px] rounded-xl">
-                    <DropdownMenuItem className="cursor-pointer font-medium">Edit</DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive cursor-pointer font-medium"
-                      onClick={() => handleDelete(event.id)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
+                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                    <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => openEdit(et)}><Pencil className="h-3.5 w-3.5" /> Edit</DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => handleCopyLink(et.slug, et.id)}><Copy className="h-3.5 w-3.5" /> Copy link</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-red-600 focus:text-red-600 cursor-pointer gap-2" onClick={() => handleDelete(et.id)}><Trash2 className="h-3.5 w-3.5" /> Delete</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Edit event type' : 'Add a new event type'}</DialogTitle>
+            <DialogDescription>{editingId ? 'Update the details for this event type.' : 'Create a new event type for people to book with you.'}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="et-title">Title</Label>
+              <Input id="et-title" placeholder="e.g. 30 Min Meeting" value={formData.title} onChange={(e) => handleTitleChange(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="et-slug">URL Slug</Label>
+              <div className="flex">
+                <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground select-none">/</span>
+                <Input id="et-slug" className="rounded-l-none" placeholder="30-min" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: slugify(e.target.value) })} required />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Duration</Label>
+                <Select value={String(formData.duration)} onValueChange={(v) => setFormData({ ...formData, duration: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{DURATION_OPTIONS.map((d) => <SelectItem key={d} value={String(d)}>{d} minutes</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Location</Label>
+                <Select value={formData.location} onValueChange={(v) => setFormData({ ...formData, location: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{locationOptions.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Buffer time after event</Label>
+              <Select value={String(formData.bufferTime)} onValueChange={(v) => setFormData({ ...formData, bufferTime: Number(v) })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{BUFFER_OPTIONS.map((b) => <SelectItem key={b} value={String(b)}>{b === 0 ? 'No buffer' : `${b} minutes`}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <textarea id="et-desc" className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none" placeholder="Brief details about this event" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Color</Label>
+              <div className="flex gap-2">
+                {COLORS.map((c) => (
+                  <button key={c} type="button" onClick={() => setFormData({ ...formData, color: c })} className={`h-7 w-7 rounded-full transition-all ${formData.color === c ? 'ring-2 ring-offset-2 ring-zinc-400 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
+                ))}
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-start space-x-3 py-1 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
+              <input type="checkbox" id="show-profile" checked={formData.showOnProfile} onChange={(e) => setFormData({ ...formData, showOnProfile: e.target.checked })} className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 cursor-pointer" />
+              <div className="space-y-1 leading-none">
+                <Label htmlFor="show-profile" className="text-sm font-medium cursor-pointer">Show on public profile</Label>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Make this event type visible on your public page.</p>
+              </div>
+            </div>
+            <Separator />
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">Cancel</Button>
+              <Button type="submit" className="rounded-full bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900">{editingId ? 'Save changes' : 'Create event type'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,15 +3,17 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const generateSlots = require("../utils/generateSlots");
 
+// ── GET /bookings ─────────────────────────────────────────────────────────────
 const getBookings = async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({
       include: {
         eventType: true,
       },
-      orderBy: {
-        startTime: "asc",
-      },
+      orderBy: [
+        { date: "asc" },
+        { startTime: "asc" },
+      ],
     });
 
     res.json(bookings);
@@ -24,6 +26,19 @@ const getBookings = async (req, res) => {
   }
 };
 
+// ── GET /bookings/slots?eventTypeId=...&date=YYYY-MM-DD ───────────────────────
+/**
+ * Slot Generation Algorithm:
+ *  1. Get requested date + eventTypeId from query
+ *  2. Find the event type to get duration
+ *  3. Fetch availability schedule from DB
+ *  4. Determine day-of-week (0=Sun, 1=Mon, … 6=Sat)
+ *  5. Get schedule intervals for that day
+ *  6. Generate all possible slots with generateSlots()
+ *  7. Query bookings for that date + eventTypeId (non-cancelled)
+ *  8. Remove booked start times from the slot list
+ *  9. Return remaining available slots
+ */
 const getAvailableSlots = async (req, res) => {
   try {
     const { eventTypeId, date } = req.query;
@@ -34,69 +49,63 @@ const getAvailableSlots = async (req, res) => {
       });
     }
 
-    // Get event type
+    // Step 1 — Fetch event type for duration
     const eventType = await prisma.eventType.findUnique({
-      where: {
-        id: eventTypeId,
-      },
+      where: { id: eventTypeId },
     });
 
     if (!eventType) {
-      return res.status(404).json({
-        message: "Event type not found",
-      });
+      return res.status(404).json({ message: "Event type not found" });
     }
 
-    const selectedDate = new Date(date);
-
-    const dayOfWeek = selectedDate.getDay();
-
-    // Find availability
-    const availability = await prisma.availability.findFirst({
-      where: {
-        dayOfWeek,
-      },
-    });
+    // Step 2 — Fetch availability (single record)
+    const availability = await prisma.availability.findFirst();
 
     if (!availability) {
-      return res.json([]);
+      return res.json({ slots: [] });
     }
 
-    // Generate all slots
-    const allSlots = generateSlots(
-      availability.startTime,
-      availability.endTime,
-      eventType.duration,
-      selectedDate
-    );
+    // Step 3 — Determine day of week (JS getDay: 0=Sun … 6=Sat)
+    // Parse date as local date (date-only string is UTC midnight, so we add T00:00 to avoid off-by-one)
+    const dateObj = new Date(date + "T00:00:00");
+    const dayOfWeek = dateObj.getDay();
 
-    // Get booked slots
-    const bookings = await prisma.booking.findMany({
+    // Step 4 — Get schedule intervals for this weekday
+    // schedule is a JSON object: { "0": [], "1": [{startTime, endTime}], … }
+    const schedule = availability.schedule;
+    const intervals = schedule[String(dayOfWeek)] || [];
+
+    if (intervals.length === 0) {
+      return res.json({ slots: [] });
+    }
+
+    // Step 5 — Generate all possible slots across every interval
+    const allSlots = [];
+    for (const interval of intervals) {
+      const slotTimes = generateSlots(
+        interval.startTime,
+        interval.endTime,
+        eventType.duration
+      );
+      allSlots.push(...slotTimes);
+    }
+
+    // Step 6 — Fetch already-booked startTimes for this date + eventType
+    const existingBookings = await prisma.booking.findMany({
       where: {
         eventTypeId,
-        startTime: {
-          gte: new Date(
-            new Date(date).setHours(0, 0, 0, 0)
-          ),
-          lte: new Date(
-            new Date(date).setHours(23, 59, 59, 999)
-          ),
-        },
-        status: "active",
+        date,
+        status: { not: "cancelled" },
       },
+      select: { startTime: true },
     });
 
-    const bookedTimes = bookings.map((booking) =>
-      booking.startTime.toISOString()
-    );
+    const bookedTimes = new Set(existingBookings.map((b) => b.startTime));
 
-    // Remove booked slots
-    const availableSlots = allSlots.filter(
-      (slot) =>
-        !bookedTimes.includes(slot.toISOString())
-    );
+    // Step 7 — Filter out booked slots
+    const availableSlots = allSlots.filter((t) => !bookedTimes.has(t));
 
-    res.json(availableSlots);
+    res.json({ slots: availableSlots });
   } catch (error) {
     console.error(error);
 
@@ -106,63 +115,59 @@ const getAvailableSlots = async (req, res) => {
   }
 };
 
+// ── POST /bookings ────────────────────────────────────────────────────────────
 const createBooking = async (req, res) => {
   try {
     const {
-      name,
-      email,
-      startTime,
       eventTypeId,
+      eventTitle,
+      duration,
+      attendeeName,
+      attendeeEmail,
+      attendeeInitials,
+      date,
+      startTime,
+      endTime,
+      location,
+      notes,
     } = req.body;
 
-    if (!name || !email || !startTime || !eventTypeId) {
+    if (!attendeeName || !attendeeEmail || !startTime || !eventTypeId || !date || !endTime) {
       return res.status(400).json({
-        message: "All fields are required",
+        message: "Required fields are missing",
       });
     }
 
-    // Find event type
-    const eventType = await prisma.eventType.findUnique({
-      where: {
-        id: eventTypeId,
-      },
-    });
-
-    if (!eventType) {
-      return res.status(404).json({
-        message: "Event type not found",
-      });
-    }
-
-    const start = new Date(startTime);
-
-    const end = new Date(
-      start.getTime() + eventType.duration * 60000
-    );
-
-    // Check existing booking
+    // Server-side double-check: is this slot still available?
     const existingBooking = await prisma.booking.findFirst({
       where: {
         eventTypeId,
-        startTime: start,
-        status: "active",
+        date,
+        startTime,
+        status: { not: "cancelled" },
       },
     });
 
     if (existingBooking) {
-      return res.status(400).json({
-        message: "This slot is already booked",
+      return res.status(409).json({
+        message: "This slot is already booked. Please choose a different time.",
       });
     }
 
-    // Create booking
     const booking = await prisma.booking.create({
       data: {
-        name,
-        email,
-        startTime: start,
-        endTime: end,
         eventTypeId,
+        eventTitle,
+        duration: Number(duration),
+        attendeeName,
+        attendeeEmail,
+        attendeeInitials,
+        date,
+        startTime,
+        endTime,
+        location,
+        notes,
+        status: "upcoming",
       },
     });
 
@@ -176,14 +181,13 @@ const createBooking = async (req, res) => {
   }
 };
 
+// ── PATCH /bookings/:id/cancel ────────────────────────────────────────────────
 const cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
 
     const booking = await prisma.booking.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (!booking) {
@@ -192,13 +196,15 @@ const cancelBooking = async (req, res) => {
       });
     }
 
+    if (booking.status === "cancelled") {
+      return res.status(400).json({
+        message: "Booking is already cancelled",
+      });
+    }
+
     const updatedBooking = await prisma.booking.update({
-      where: {
-        id,
-      },
-      data: {
-        status: "cancelled",
-      },
+      where: { id },
+      data: { status: "cancelled" },
     });
 
     res.json(updatedBooking);

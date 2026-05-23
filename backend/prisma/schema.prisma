@@ -16,6 +16,12 @@ model EventType {
 
   slug        String   @unique
 
+  location    String   @default("google-meet")
+  color       String   @default("#6366f1")
+  bufferTime  Int      @default(0)
+  enabled     Boolean  @default(true)
+  showOnProfile Boolean @default(true)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -23,34 +29,40 @@ model EventType {
 }
 
 model Availability {
-  id          String   @id @default(cuid())
+  id            String   @id @default(cuid())
+  
+  name          String   @default("Working Hours")
+  timezone      String   @default("Asia/Kolkata")
+  schedule      Json
+  dateOverrides Json     @default("[]")
 
-  dayOfWeek   Int
-  startTime   String
-  endTime     String
-
-  timezone    String
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Booking {
-  id           String    @id @default(cuid())
+  id               String    @id @default(cuid())
 
-  name         String
-  email        String
+  eventTypeId      String
+  eventType        EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  eventTitle       String?
+  duration         Int?
 
-  startTime    DateTime
-  endTime      DateTime
+  attendeeName     String
+  attendeeEmail    String
+  attendeeInitials String?
 
-  status       String    @default("active")
+  date             String
+  startTime        String
+  endTime          String
 
-  eventTypeId  String
-  eventType    EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  location         String?
+  notes            String?
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status           String    @default("upcoming")
 
-  @@unique([eventTypeId, startTime])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([eventTypeId, date, startTime])
 }

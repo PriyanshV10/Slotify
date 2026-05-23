@@ -5,6 +5,7 @@ const {
   createEventType,
   updateEventType,
   deleteEventType,
+  getEventTypeBySlug,
 } = require("../controllers/eventController");
 
 const router = express.Router();

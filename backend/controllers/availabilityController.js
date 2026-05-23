@@ -4,11 +4,11 @@ const prisma = new PrismaClient();
 
 const getAvailability = async (req, res) => {
   try {
-    const availability = await prisma.availability.findMany({
-      orderBy: {
-        dayOfWeek: "asc",
-      },
-    });
+    const availability = await prisma.availability.findFirst();
+
+    if (!availability) {
+      return res.json(null);
+    }
 
     res.json(availability);
   } catch (error) {
@@ -22,21 +22,20 @@ const getAvailability = async (req, res) => {
 
 const setAvailability = async (req, res) => {
   try {
-    const schedules = req.body;
+    const { name, timezone, schedule, dateOverrides } = req.body;
 
     await prisma.availability.deleteMany();
 
-    await prisma.availability.createMany({
-      data: schedules,
-    });
-
-    const updatedAvailability = await prisma.availability.findMany({
-      orderBy: {
-        dayOfWeek: "asc",
+    const newAvailability = await prisma.availability.create({
+      data: {
+        name: name || "Working Hours",
+        timezone: timezone || "Asia/Kolkata",
+        schedule: schedule || {},
+        dateOverrides: dateOverrides || [],
       },
     });
 
-    res.json(updatedAvailability);
+    res.json(newAvailability);
   } catch (error) {
     console.error(error);
 
