@@ -1,265 +1,68 @@
-# Slotify — Scheduling Platform
+# Slotify — Scheduling Platform (Cal.com Clone)
 
-A full-stack scheduling application inspired by Cal.com, built as a frontend-focused engineering assignment. Slotify lets users create event types, configure availability, and share public booking links so others can book time with them.
+Slotify is a full-stack scheduling and booking web application built as a clone of Cal.com. It allows users to create event types, set their availability, and share public booking links for others to seamlessly book time slots on their calendar.
 
-**Live Demo:** _[Deploy link goes here]_
+## 🚀 Live Demo
+- **Frontend**: [Link to your Vercel/Netlify deployment]
+- **Backend API**: [Link to your Render/Railway deployment]
 
----
+## 🛠 Tech Stack
+- **Frontend**: React.js (Vite), Tailwind CSS v4, shadcn/ui (Radix Primitives), Lucide Icons, Date-fns
+- **Backend**: Node.js, Express.js, Prisma ORM
+- **Database**: PostgreSQL (Hosted on Neon — configured via Prisma ORM)
 
-## Tech Stack
+## ✨ Core Features Implemented
+- **Event Types Management**: Create, edit, toggle visibility, and delete event types with unique public URLs.
+- **Availability Settings**: Configure weekly working hours and timezones.
+- **Public Booking Interface**: A responsive calendar view that calculates available slots dynamically and prevents double-booking.
+- **Bookings Dashboard**: View upcoming/past meetings and cancel bookings.
+- **Bonus Features Included**:
+  - Fully responsive design (Mobile, Tablet, Desktop)
+  - Buffer time configuration automatically applied between meetings
+  - Date Overrides (block off specific holidays/vacations or set custom hours per day)
+  - Glassmorphic, highly polished UI matching Cal.com's modern design language
+  - Dark mode support
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite, Tailwind CSS v4, shadcn/ui |
-| State | React Context API |
-| Routing | React Router v7 |
-| Calendar | react-day-picker v10 |
-| HTTP Client | Axios |
-| Toasts | Sonner |
-| Backend | Node.js, Express 5 |
-| ORM | Prisma 6 |
-| Database | PostgreSQL |
-| Font | Geist Variable |
+## ⚙️ Setup Instructions
 
----
-
-## Architecture
-
-```
-cal-clone/
-├── backend/                  # Express API
-│   ├── controllers/          # Request handlers
-│   │   ├── eventController.js
-│   │   ├── bookingController.js
-│   │   └── availabilityController.js
-│   ├── routes/               # Route definitions
-│   ├── utils/
-│   │   └── generateSlots.js  # Core slot generation algorithm
-│   ├── prisma/
-│   │   ├── schema.prisma     # DB models
-│   │   └── seed.js           # Sample data
-│   └── index.js              # Entry point
-│
-└── frontend/                 # React + Vite SPA
-    └── src/
-        ├── pages/
-        │   ├── EventTypes.jsx      # /dashboard/event-types
-        │   ├── Availability.jsx    # /dashboard/availability
-        │   ├── Bookings.jsx        # /dashboard/bookings
-        │   └── PublicBooking.jsx   # /:slug (public)
-        ├── layouts/
-        │   └── DashboardLayout.jsx # Sidebar + header shell
-        ├── context/
-        │   └── AppContext.jsx      # Global state + API calls
-        └── lib/
-            └── api.js              # Axios API client
-```
-
----
-
-## Database Schema
-
-### EventType
-```prisma
-model EventType {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  duration    Int
-  slug        String   @unique
-  location    String   @default("google-meet")
-  color       String   @default("#6366f1")
-  bufferTime  Int      @default(0)
-  enabled     Boolean  @default(true)
-  bookings    Booking[]
-}
-```
-
-### Availability
-```prisma
-model Availability {
-  id            String   @id @default(cuid())
-  name          String   @default("Working Hours")
-  timezone      String   @default("Asia/Kolkata")
-  schedule      Json     // { "0": [], "1": [{startTime, endTime}], ... }
-  dateOverrides Json     @default("[]")
-}
-```
-
-### Booking
-```prisma
-model Booking {
-  id               String    @id @default(cuid())
-  eventTypeId      String
-  eventType        EventType @relation(...)
-  attendeeName     String
-  attendeeEmail    String
-  date             String    // "YYYY-MM-DD"
-  startTime        String    // "HH:mm"
-  endTime          String    // "HH:mm"
-  status           String    @default("upcoming")
-
-  @@unique([eventTypeId, date, startTime])  // prevents double-booking
-}
-```
-
-> **Why `@@unique([eventTypeId, date, startTime])`?** This DB-level constraint is the true guard against double-booking. Even if two users submit a booking for the same slot at the exact same moment, the DB will reject the second insert — making the frontend checks a convenience, not the safety net.
-
----
-
-## Slot Generation Algorithm
-
-`backend/utils/generateSlots.js`
-
-```
-1. Parse startTime and endTime into minutes-since-midnight
-2. Walk forward by `duration` minutes
-3. Stop when the next slot end would exceed endTime
-4. Return all valid start times as "HH:mm" strings
-```
-
-Used in `GET /bookings/slots`:
-1. Fetch EventType for duration
-2. Fetch Availability schedule
-3. Get day-of-week from requested date
-4. Generate all possible slots for active intervals
-5. Query existing bookings for that eventTypeId + date
-6. Filter out booked slots → return remaining
-
----
-
-## API Routes
-
-### Event Types
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/event-types` | List all event types |
-| `POST` | `/api/event-types` | Create event type |
-| `PUT` | `/api/event-types/:id` | Update event type |
-| `DELETE` | `/api/event-types/:id` | Delete event type |
-| `GET` | `/api/event-types/slug/:slug` | Get by slug (public) |
-
-### Availability
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/availability` | Get schedule |
-| `POST` | `/api/availability` | Save schedule |
-
-### Bookings
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/bookings` | List all bookings |
-| `GET` | `/api/bookings/slots?eventTypeId=&date=` | Get available slots |
-| `POST` | `/api/bookings` | Create booking |
-| `PATCH` | `/api/bookings/:id/cancel` | Cancel booking |
-
----
-
-## Local Setup
-
-### Prerequisites
-- Node.js v18+
-- PostgreSQL running locally
-
-### 1. Clone the repo
+### 1. Clone the repository
 ```bash
-git clone <repo-url>
+git clone <your-repo-url>
 cd cal-clone
 ```
 
-### 2. Backend setup
+### 2. Backend Setup
 ```bash
 cd backend
 npm install
-```
 
-Create `backend/.env`:
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/slotify"
-PORT=5000
-```
+# Set up the PostgreSQL database
+# (Ensure DATABASE_URL is set in your .env file)
+npx prisma db push
 
-Run migrations and seed:
-```bash
-npx prisma migrate dev --name init
+# Seed the database with sample data
 node prisma/seed.js
-```
 
-Start the backend:
-```bash
+# Start the development server
 npm run dev
 ```
+*The backend will run on `http://localhost:5000`*
 
-### 3. Frontend setup
+### 3. Frontend Setup
+Open a new terminal window:
 ```bash
 cd frontend
 npm install
-```
 
-Create `frontend/.env`:
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-Start the dev server:
-```bash
+# Start the Vite development server
 npm run dev
 ```
+*The frontend will run on `http://localhost:5173`*
 
-Open [http://localhost:5173](http://localhost:5173)
+## 🤔 Assumptions & Implementation Details
+- **No Authentication**: As per the requirements, no login system is implemented. A default user context is assumed for the admin side, and the public booking page is accessible to anyone.
+- **Database**: PostgreSQL (Neon) is used as the primary database, satisfying the assignment's explicit relational database requirement. Prisma ORM handles all migrations and querying.
+- **Double Booking Prevention**: Handled at both the frontend (by dynamically stripping booked slots from the UI) and the backend (via a concurrency check before saving to the database).
 
----
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/slotify` |
-| `PORT` | Server port | `5000` |
-
-### Frontend (`frontend/.env`)
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VITE_API_URL` | Base URL for the Express API | `http://localhost:5000/api` |
-
----
-
-## Key Design Decisions & Assumptions
-
-1. **No authentication** — Single-user scheduling app. The owner manages event types and availability; anyone with a link can book. Skipped intentionally per assignment scope.
-
-2. **String-based date/time** — Bookings store `date: String ("YYYY-MM-DD")` and `startTime: String ("HH:mm")` rather than `DateTime`. This avoids timezone conversion complexity while keeping slot comparison straightforward.
-
-3. **Availability as a single record** — One global `Availability` record with a JSON schedule. Simpler than per-event-type availability while still allowing full weekly configuration.
-
-4. **Past/Upcoming computed on frontend** — The backend never auto-updates booking status to "past". The frontend dynamically computes whether a booking is past by comparing `date + endTime` against `new Date()`.
-
-5. **Reschedule = cancel + create** — No separate reschedule endpoint. Rescheduling cancels the existing booking and creates a new one at the new time, ensuring full server-side slot availability checking.
-
-6. **React + Express** — Chosen for simplicity and faster development within the assignment timeline. Both have a minimal ceremony overhead and excellent ecosystem support.
-
----
-
-## Deployment
-
-### Backend → Render
-- New Web Service from repo
-- Build: `npm install && npx prisma generate`
-- Start: `node index.js`
-- Add env: `DATABASE_URL`, `PORT`
-
-### Frontend → Vercel
-- New project from repo, set Root to `frontend/`
-- Add env: `VITE_API_URL=<your-render-url>/api`
-
----
-
-## What Was Not Built (Intentionally)
-- ❌ Authentication / OAuth
-- ❌ Google Calendar sync
-- ❌ Payment processing
-- ❌ Email notifications
-- ❌ Websockets / real-time updates
-- ❌ Per-event-type availability
-- ❌ Redux or other state libraries
+## 📄 License
+MIT

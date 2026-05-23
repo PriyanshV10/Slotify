@@ -12,7 +12,7 @@
  *  3. Stop when the slot end would exceed endTime
  *  4. Return all valid slot start times as "HH:mm" strings
  */
-const generateSlots = (startTime, endTime, duration) => {
+const generateSlots = (startTime, endTime, duration, bufferTime = 0) => {
   const slots = [];
 
   const toMinutes = (t) => {
@@ -33,7 +33,7 @@ const generateSlots = (startTime, endTime, duration) => {
   // A slot is valid only if it fully fits before endTime
   while (cur + duration <= endMin) {
     slots.push(toHHMM(cur));
-    cur += duration;
+    cur += duration + bufferTime;
   }
 
   return slots;

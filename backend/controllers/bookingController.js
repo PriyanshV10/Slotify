@@ -70,10 +70,26 @@ const getAvailableSlots = async (req, res) => {
     const dateObj = new Date(date + "T00:00:00");
     const dayOfWeek = dateObj.getDay();
 
-    // Step 4 — Get schedule intervals for this weekday
-    // schedule is a JSON object: { "0": [], "1": [{startTime, endTime}], … }
-    const schedule = availability.schedule;
-    const intervals = schedule[String(dayOfWeek)] || [];
+    // Step 4 — Get schedule intervals for this weekday, or check Date Overrides!
+    let intervals = [];
+    
+    // Check Date Overrides first
+    // availability.dateOverrides is stored as a JSON array in Prisma
+    const dateOverrides = availability.dateOverrides || [];
+    const override = dateOverrides.find((o) => o.date === date);
+
+    if (override) {
+      if (override.unavailable) {
+        return res.json({ slots: [] }); // Fully blocked out date
+      } else {
+        // Custom hours for this date
+        intervals = [{ startTime: override.startTime, endTime: override.endTime }];
+      }
+    } else {
+      // Fallback to regular weekly schedule
+      const schedule = availability.schedule;
+      intervals = schedule[String(dayOfWeek)] || [];
+    }
 
     if (intervals.length === 0) {
       return res.json({ slots: [] });
@@ -85,7 +101,8 @@ const getAvailableSlots = async (req, res) => {
       const slotTimes = generateSlots(
         interval.startTime,
         interval.endTime,
-        eventType.duration
+        eventType.duration,
+        eventType.bufferTime || 0
       );
       allSlots.push(...slotTimes);
     }
