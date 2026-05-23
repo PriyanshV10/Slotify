@@ -55,7 +55,7 @@ export default function DashboardLayout() {
 
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
-  const publicPageUrl = window.location.origin;
+  const publicPageUrl = `${window.location.origin}/${user.username}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicPageUrl);

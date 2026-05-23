@@ -75,7 +75,7 @@ function EventInfoPanel({ event, user, availability, selectedDate, selectedTime 
 
 export default function PublicBooking() {
   const { slug } = useParams();
-  const { eventTypes, user, availability, createBooking, isSlotBooked } = useApp();
+  const { eventTypes, user, availability, createBooking, isSlotBooked, loading } = useApp();
   const event = eventTypes.find(et => et.slug === slug);
 
   const [selectedDate, setSelectedDate] = useState(null);
@@ -153,6 +153,14 @@ export default function PublicBooking() {
   };
 
   // ── Not found ──────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 text-zinc-400 animate-spin" />
+      </div>
+    );
+  }
+
   if (!event) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
