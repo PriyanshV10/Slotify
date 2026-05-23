@@ -76,23 +76,8 @@ export default function DashboardLayout() {
 
   const SidebarContent = ({ onNavClick }) => (
     <div className="flex h-full grow flex-col overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-      {/* Logo + mobile close trigger */}
-      <div className="flex h-16 shrink-0 items-center justify-between gap-2.5 px-5 border-b border-zinc-100 dark:border-zinc-800/60">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="Slotify" className="h-8 w-auto dark:invert opacity-90 hover:opacity-100 transition-opacity" />
-        </div>
-        {/* Dark mode toggle — moved here from header */}
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-50 dark:hover:bg-zinc-800 transition-all"
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        >
-          {theme === 'dark' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-          )}
-        </button>
+      <div className="flex h-16 shrink-0 items-center gap-2.5 px-6 border-b border-zinc-100 dark:border-zinc-800/60">
+        <img src="/logo.png" alt="Slotify" className="h-8 w-auto dark:invert opacity-90 hover:opacity-100 transition-opacity" />
       </div>
 
       {/* Navigation */}
